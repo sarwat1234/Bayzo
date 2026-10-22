@@ -21,6 +21,20 @@ def setup_database():
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            customer_name TEXT NOT NULL,
+            customer_email TEXT NOT NULL,
+            service_id INTEGER NOT NULL,
+            booking_date TEXT NOT NULL,
+            start_hour INTEGER NOT NULL,
+            duration_hours INTEGER NOT NULL,
+            FOREIGN KEY (service_id) REFERENCES services (id)
+        )
+        """
+    )
     count = connection.execute("SELECT COUNT(*) FROM services").fetchone()[0]
     if count == 0:
         connection.executemany(
