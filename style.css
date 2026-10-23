@@ -76,6 +76,63 @@ main {
   color: #ff6b1a;
 }
 
+form {
+  display: grid;
+  gap: 8px;
+  max-width: 500px;
+  margin-top: 30px;
+}
+
+label {
+  margin-top: 12px;
+  font-weight: bold;
+}
+
+input,
+select {
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #444444;
+  border-radius: 6px;
+  background-color: #2a2a2a;
+  color: #f5f5f5;
+  color-scheme: dark;
+}
+
+button {
+  margin-top: 20px;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: bold;
+  background-color: #ff6b1a;
+  color: #111111;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #ff8a47;
+}
+
+button:disabled {
+  background-color: #555555;
+  cursor: not-allowed;
+}
+
+#message {
+  margin-top: 20px;
+  font-size: 1.1rem;
+}
+
+#message.success {
+  color: #5ad07a;
+}
+
+#message.error {
+  color: #ff6b6b;
+}
+
 @media (max-width: 800px) {
   .services {
     grid-template-columns: 1fr;
