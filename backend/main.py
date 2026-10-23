@@ -1,10 +1,19 @@
+import os
 from datetime import date, datetime, timezone
 
-from fastapi import FastAPI, HTTPException
+import stripe
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from database import get_connection, setup_database
+
+load_dotenv()
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:5500")
 
 app = FastAPI(title="Bayzo API")
 
@@ -19,6 +28,7 @@ setup_database()
 
 CLOSING_HOUR = 20
 TAX_RATE = 0.05
+CURRENCY = "cad"
 
 
 class BookingRequest(BaseModel):
@@ -219,3 +229,98 @@ def get_invoice(invoice_id: int):
     if row is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return dict(row)
+
+
+@app.post("/invoices/{invoice_id}/checkout")
+def create_checkout(invoice_id: int):
+    if not stripe.api_key:
+        raise HTTPException(status_code=500, detail="Payments are not configured")
+
+    connection = get_connection()
+    invoice = connection.execute(
+        "SELECT * FROM invoices WHERE id = ?", (invoice_id,)
+    ).fetchone()
+    connection.close()
+    if invoice is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if invoice["status"] == "paid":
+        raise HTTPException(status_code=409, detail="This invoice is already paid")
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[
+                {
+                    "price_data": {
+                        "currency": CURRENCY,
+                        "product_data": {
+                            "name": f"Bayzo invoice #{invoice['id']}",
+                            "description": invoice["description"],
+                        },
+                        "unit_amount": invoice["total_cents"],
+                    },
+                    "quantity": 1,
+                }
+            ],
+            metadata={"invoice_id": str(invoice["id"])},
+            success_url=f"{SITE_URL}/index.html",
+            cancel_url=f"{SITE_URL}/pricing.html",
+        )
+    except stripe.StripeError as error:
+        print("Stripe error:", error)
+        raise HTTPException(
+            status_code=502, detail="Could not create the payment session"
+        )
+    return {"url": session.url}
+
+
+def mark_invoice_paid(session):
+    metadata = session.get("metadata") or {}
+    invoice_id = metadata.get("invoice_id")
+    if invoice_id is None:
+        return
+
+    connection = get_connection()
+    try:
+        invoice = connection.execute(
+            "SELECT total_cents FROM invoices WHERE id = ?", (int(invoice_id),)
+        ).fetchone()
+        # Only accept the payment if the amount matches what we invoiced
+        if invoice is None or invoice["total_cents"] != session["amount_total"]:
+            return
+        # The status check makes repeated deliveries of the same event harmless
+        connection.execute(
+            "UPDATE invoices SET status = 'paid' WHERE id = ? AND status = 'unpaid'",
+            (int(invoice_id),),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+
+
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    if not WEBHOOK_SECRET:
+        raise HTTPException(status_code=500, detail="Webhook is not configured")
+
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(payload, signature, WEBHOOK_SECRET)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
+    event_data = event.to_dict()
+
+    if event_data["type"] in (
+        "checkout.session.completed",
+        "checkout.session.async_payment_succeeded",
+    ):
+        session = event_data["data"]["object"]
+        if session["payment_status"] == "paid":
+            mark_invoice_paid(session)
+
+    return {"received": True}
