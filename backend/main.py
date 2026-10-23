@@ -1,11 +1,19 @@
 from datetime import date
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from database import get_connection, setup_database
 
 app = FastAPI(title="Bayzo API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://127.0.0.1:5500", "http://localhost:5500"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 setup_database()
 
