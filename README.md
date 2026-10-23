@@ -103,7 +103,7 @@ Interactive documentation is available at `http://127.0.0.1:8000/docs` while the
 ### 1. Clone and set up the backend
 
 ```
-git clone https://github.com/<your-username>/bayzo.git
+git clone https://github.com/sarwat1234/bayzo.git
 cd bayzo/backend
 python3 -m venv venv
 source venv/bin/activate
