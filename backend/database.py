@@ -17,7 +17,8 @@ def setup_database():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             price REAL NOT NULL,
-            unit TEXT NOT NULL
+            unit TEXT NOT NULL,
+            description TEXT NOT NULL
         )
         """
     )
@@ -47,11 +48,11 @@ def setup_database():
     )
     if connection.execute("SELECT COUNT(*) FROM services").fetchone()[0] == 0:
         connection.executemany(
-            "INSERT INTO services (name, price, unit) VALUES (?, ?, ?)",
+            "INSERT INTO services (name, price, unit, description) VALUES (?, ?, ?, ?)",
             [
-                ("Basic Bay", 25, "hour"),
-                ("Guided Bay", 45, "hour"),
-                ("Specialty Tools", 10, "day"),
+                ("Basic Bay", 25, "hour", "A bay with a lift and a standard tool set."),
+                ("Guided Bay", 45, "hour", "Everything in Basic, plus a mechanic helping you through the job."),
+                ("Specialty Tools", 10, "day", "Borrow tools like torque wrenches and diagnostic scanners."),
             ],
         )
     if connection.execute("SELECT COUNT(*) FROM bays").fetchone()[0] == 0:
