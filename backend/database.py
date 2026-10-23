@@ -41,8 +41,24 @@ def setup_database():
             booking_date TEXT NOT NULL,
             start_hour INTEGER NOT NULL,
             duration_hours INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'booked',
             FOREIGN KEY (service_id) REFERENCES services (id),
             FOREIGN KEY (bay_id) REFERENCES bays (id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            booking_id INTEGER NOT NULL UNIQUE,
+            description TEXT NOT NULL,
+            subtotal_cents INTEGER NOT NULL,
+            tax_cents INTEGER NOT NULL,
+            total_cents INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'unpaid',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (booking_id) REFERENCES bookings (id)
         )
         """
     )

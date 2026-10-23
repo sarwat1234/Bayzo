@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +18,7 @@ app.add_middleware(
 setup_database()
 
 CLOSING_HOUR = 20
+TAX_RATE = 0.05
 
 
 class BookingRequest(BaseModel):
@@ -132,3 +133,89 @@ def list_bookings():
     rows = connection.execute("SELECT * FROM bookings").fetchall()
     connection.close()
     return [dict(row) for row in rows]
+
+
+@app.post("/bookings/{booking_id}/complete", status_code=201)
+def complete_booking(booking_id: int):
+    connection = get_connection()
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+
+        booking = connection.execute(
+            """
+            SELECT b.id, b.status, b.booking_date, b.duration_hours,
+                   s.name AS service_name, s.price AS service_price,
+                   bays.name AS bay_name
+            FROM bookings b
+            JOIN services s ON b.service_id = s.id
+            JOIN bays ON b.bay_id = bays.id
+            WHERE b.id = ?
+            """,
+            (booking_id,),
+        ).fetchone()
+        if booking is None:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        if booking["status"] == "completed":
+            raise HTTPException(
+                status_code=409, detail="This booking already has an invoice"
+            )
+
+        hourly_rate_cents = round(booking["service_price"] * 100)
+        subtotal_cents = hourly_rate_cents * booking["duration_hours"]
+        tax_cents = round(subtotal_cents * TAX_RATE)
+        total_cents = subtotal_cents + tax_cents
+
+        description = (
+            f"{booking['service_name']}, {booking['duration_hours']} hour(s) "
+            f"in {booking['bay_name']} on {booking['booking_date']}"
+        )
+
+        cursor = connection.execute(
+            """
+            INSERT INTO invoices
+                (booking_id, description, subtotal_cents, tax_cents,
+                 total_cents, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                booking_id,
+                description,
+                subtotal_cents,
+                tax_cents,
+                total_cents,
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        connection.execute(
+            "UPDATE bookings SET status = 'completed' WHERE id = ?", (booking_id,)
+        )
+        connection.commit()
+        row = connection.execute(
+            "SELECT * FROM invoices WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone()
+        return dict(row)
+    except HTTPException:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+@app.get("/invoices")
+def list_invoices():
+    connection = get_connection()
+    rows = connection.execute("SELECT * FROM invoices").fetchall()
+    connection.close()
+    return [dict(row) for row in rows]
+
+
+@app.get("/invoices/{invoice_id}")
+def get_invoice(invoice_id: int):
+    connection = get_connection()
+    row = connection.execute(
+        "SELECT * FROM invoices WHERE id = ?", (invoice_id,)
+    ).fetchone()
+    connection.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return dict(row)
