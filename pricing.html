@@ -4,22 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pricing | Bayzo</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="pages.css">
 </head>
 <body>
   <header>
-    <h1>Bayzo</h1>
+    <a class="logo" href="index.html" aria-label="Bayzo home">
+      <svg viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+        <polygon points="20,3 35,11.5 35,28.5 20,37 5,28.5 5,11.5" fill="none" stroke="#cfa65a" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M15.5 11.5V28.5" stroke="#cfa65a" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+        <circle cx="21" cy="22.5" r="5.6" fill="none" stroke="#cfa65a" stroke-width="2.6"/>
+      </svg>
+      <span>bayzo</span>
+    </a>
     <nav>
       <a href="index.html">Home</a>
-      <a href="index.html#services">Services</a>
-      <a href="pricing.html">Pricing</a>
-      <a href="#">Book</a>
+      <a href="pricing.html" aria-current="page">Pricing</a>
+      <a href="book.html">Book</a>
     </nav>
   </header>
 
   <main>
     <h2>Simple hourly pricing</h2>
-    <p>Pay only for the time you use. Basic tools are always included.</p>
+    <p class="lead">Pay only for the time you use. Basic tools are always included.</p>
 
     <section class="services" id="price-list">
       <div class="card">
